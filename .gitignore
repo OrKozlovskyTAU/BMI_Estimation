@@ -1,0 +1,14 @@
+saved_pth/*
+saved_figures/*
+Seg_data/*
+Aug_data/*
+Org_sorted/*
+Org_Aug_Seg_sorted/*
+Aug_csv/*
+wandb/*
+Seg_csv/*
+logs/*
+saved_models/*
+slurm*
+__pycache__/*
+Org_Aug_sorted/*
