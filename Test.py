@@ -109,21 +109,19 @@ def test(model: nn.Module, dataloader: torch.utils.data.DataLoader, loss_fn: nn.
     test_loss = 0
     test_acc = 0
 
+    y_list, y_pred_list = [], []
     # eval mode
     model.eval()
     with torch.inference_mode():
         for X_test, y_test, _ in tqdm.tqdm(dataloader, desc='Testing'):
-
-            # casting BMI from double to float
-            y_test = y_test.type(torch.float32)
-
             # send data to device
             X_test, y_test = X_test.to(device), y_test.to(device)
+            y_list.append(y_test.item())
 
             # forward pass
             y_test_pred = model(X_test)
-            # y_test_pred = torch.softmax(y_test_pred_logits)
             y_test_pred = y_test_pred.squeeze(dim=1)
+            y_pred_list.append(y_test_pred.item())
 
             # calculate the loss
             loss = loss_fn(y_test_pred, y_test)
@@ -138,15 +136,15 @@ def test(model: nn.Module, dataloader: torch.utils.data.DataLoader, loss_fn: nn.
         test_loss /= len(dataloader)
         test_acc /= len(test_data_custom)
 
-    MAE = mean_absolute_error(y_test.to('cpu'), y_test_pred.to('cpu'))  ###
-    MAPE = mean_absolute_percentage_error(y_test.to('cpu'), y_test_pred.to('cpu'))  ###
-    print('-' * 80)
-    print('-' * 80)
+    MAE = mean_absolute_error(y_list, y_pred_list)  ###
+    MAPE = mean_absolute_percentage_error(y_list, y_pred_list)  ###
+    print('-' * 100)
     print(
         'Test MAE: {:.4f}\t Test MAPE: {:.4f} %\t Test loss: {:.4f}\t Test accuracy: {:.4f} %'.format(
             MAE, MAPE * 100, test_loss, test_acc * 100
         )
     )  ###
+    print('-' * 100)
 
 
 # set timer to measure how long it takes to train

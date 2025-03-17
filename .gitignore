@@ -12,3 +12,4 @@ saved_models/*
 slurm*
 __pycache__/*
 Org_Aug_sorted/*
+README_tmp.md

@@ -76,7 +76,7 @@ arg = parser.parse_args()
 ##############################################################################################################
 # IMPORTANT PARAMETERS THAT CAN BE MODIFIED
 # Default Hyperparamaters / Values
-SEED = 20
+SEED = np.random.randint(0, 1000)
 ACTIVATION_FUNCTION = nn.GELU()
 RESNET_NUM = 'resnet101'  # used for selecting the specific resnet variant to be used
 EFF = '2'  # used for selecting the specific efficient variant to be used
@@ -407,6 +407,8 @@ def save_model(
     if not final_res_after_reg_class:
         # saving model state dict
         torch.save(obj=saved_data, f=file_save_path)
+
+    print(f'Model saved at: {file_save_path}')
 
     # Append the data to the CSV file
     csv_file_path = f'{save_results_path}new_auto_data_from_pth.csv'
