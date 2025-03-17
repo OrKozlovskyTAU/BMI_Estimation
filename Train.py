@@ -33,7 +33,6 @@ import numpy as np
 from pathlib import Path
 from torchvision import transforms
 from torch.utils.data import DataLoader
-import wandb
 
 # device agnostic code
 device = device_select()
@@ -238,21 +237,6 @@ config.update(
     }
 )
 
-wandb.init(
-    project='DeepLearningProject2',
-    name=f"{folder_path.name} | {model.__class__.__name__} | regression_after_classification: {regression_after_classification} | manual_classes: {manual_classes} | add_false: {add_false}",
-    config=config,
-)
-
-
-# define our custom x axis metric
-wandb.define_metric("epoch")
-# define which metrics will be plotted against it
-wandb.define_metric("train_loss", step_metric="epoch")
-wandb.define_metric("train_acc", step_metric="epoch")
-wandb.define_metric("test_loss", step_metric="epoch")
-wandb.define_metric("test_acc", step_metric="epoch")
-
 
 class Scheduler_select:
     def __init__(self, optimizer=OPTIMIZER, scheduler_type=None, **kwargs):
@@ -314,12 +298,6 @@ def save_model(
     mae = model_results['mae']
     mape = model_results['mape']
 
-    # if the arcitecture chosen is ResNet, then also include which resnet was used
-    if architecture == 'ResNet_Model':
-        architecture = f'ResNet_Model: {RESNET_NUM}'
-    if architecture == 'EfficientNet_Model':
-        architecture = f'EfficientNet_Model: {EFF}'
-
     if final_res_after_reg_class:
         hyperparameters = {
             'Folder name': '',
@@ -378,6 +356,8 @@ def save_model(
             'Total images': total_num_of_images,
             'Classification task': classification_activation,
             'Class index': class_idx,
+            'Image size': IMG_SIZE,
+            'Seed': SEED,
         }
 
         if not classification_activation:
@@ -493,8 +473,6 @@ def save_model(
             writer.writerow(header_data)
         writer.writerow(new_row_data)
 
-    return file_save_path
-
 
 def are_state_dicts_equal(saved_dict, loaded_dict):
     '''Checking that the saved and loaded state dict are the same, thus making sure that the saving went well'''
@@ -580,10 +558,6 @@ def plot_loss_and_acc_curves(
         loss_curve_save_path = f'{save_figure_path}loss_curves/{architecture}_{time_stamp()}.jpg'
         acc_curve_save_path = f'{save_figure_path}acc_curves/{architecture}_{time_stamp()}.jpg'
 
-    # # paths to save the curves
-    # loss_curve_save_path = f'{save_figure_path}loss_curves/{architecture}_{folder_path.name}_{time_stamp()}.jpg'
-    # acc_curve_save_path = f'{save_figure_path}acc_curves/{architecture}_{folder_path.name}_{time_stamp()}.jpg'
-
     # Loss
     # setup a plot
     plt.figure(figsize=(16, 7))
@@ -611,8 +585,6 @@ def plot_loss_and_acc_curves(
     plt.title('Accuracy curve')
     plt.legend()
     plt.savefig(acc_curve_save_path)
-
-    wandb.log({"loss_curve": wandb.Image(loss_curve_save_path), "acc_curve": wandb.Image(acc_curve_save_path)})
 
 
 # Class to have default values for test results
@@ -855,16 +827,6 @@ def train(
             classes_limits=classes_limits,
         )
 
-        wandb.log(
-            {
-                f"epoch": epoch,
-                f"train_loss{suffix}": train_loss,
-                f"test_loss{suffix}": test_loss,
-                f"train_acc{suffix}": train_acc,
-                f"test_acc{suffix}": test_acc,
-            }
-        )
-
         # printing the progress
         print(
             f'\n\nEpoch: {epoch+1} |\t \
@@ -955,11 +917,6 @@ def train(
         print(f'Best MAE is: {min_mae:.4f}  -  epoch: {min_mae_index + 1}')
         print(f'Best MAPE is: {min_mape * 100:.4f} %  -  epoch: {min_mape_index + 1}')
 
-        wandb.run.summary[f"Best MAE{suffix}"] = min_mae
-        wandb.run.summary[f"Best MAE Epoch{suffix}"] = min_mae_index + 1
-        wandb.run.summary[f"Best MAPE{suffix}"] = min_mape * 100
-        wandb.run.summary[f"Best MAPE Epoch{suffix}"] = min_mape_index + 1
-
     # Best loss
     print(f"Best train loss is: {min_train_loss:.4f}  -  epoch: {min_train_loss_index + 1}")
     print(f"Best test loss is: {min_test_loss:.4f}  -  epoch: {min_test_loss_index + 1}")
@@ -967,15 +924,6 @@ def train(
     print(f"Best train accuracy is: {max_train_acc:.4f} %  -  epoch: {max_train_acc_index + 1}")
     print(f"Best test accuracy is: {max_test_acc:.4f} %  -  epoch: {max_test_acc_index + 1}")
     print('-' * 50)
-
-    wandb.run.summary[f"Best Test Accuracy{suffix}"] = max_test_acc
-    wandb.run.summary[f"Best Test Accuracy Epoch{suffix}"] = max_test_acc_index + 1
-    wandb.run.summary[f"Best Train Accuracy{suffix}"] = max_train_acc
-    wandb.run.summary[f"Best Train Accuracy Epoch{suffix}"] = max_train_acc_index + 1
-    wandb.run.summary[f"Best Test Loss{suffix}"] = min_test_loss
-    wandb.run.summary[f"Best Test Loss Epoch{suffix}"] = min_test_loss_index + 1
-    wandb.run.summary[f"Best Train Loss{suffix}"] = min_train_loss
-    wandb.run.summary[f"Best Train Loss Epoch{suffix}"] = min_train_loss_index + 1
 
     # updating the dict to the latest values
     results['best_model'] = default_metric.best_model
@@ -1267,7 +1215,7 @@ def main():
             plot_loss_and_acc_curves(model_results=model_results)
 
             # saving results, weights and parameters
-            file_save_path = save_model(
+            save_model(
                 state_dict=model_results['best_model'],
                 model_results=model_results,
                 time_dict=class_time_dict,
@@ -1547,7 +1495,7 @@ def main():
                 plot_loss_and_acc_curves(model_results=model_results, additional_path=default_time_stamp, class_idx=i)
 
                 # saving results, weights and parameters
-                file_save_path = save_model(
+                save_model(
                     state_dict=model_results['best_model'],
                     model_results=model_results,
                     time_dict=time_dict,
@@ -1564,18 +1512,6 @@ def main():
                     class_idx=str(i),
                     classification_activation=False,
                 )
-
-                # # Load saved data
-                # loaded_data = torch.load(file_save_path)
-
-                # # Load model weights only
-                # loaded_state_dict = loaded_data['Model_state_dict']
-
-                # # Verifying that the save and load operations has been done correctly
-                # if are_state_dicts_equal(model_results['best_model'], loaded_state_dict):
-                #     print("The saved and loaded state dicts are the same.")
-                # else:
-                #     print("The saved and loaded state dicts are different.")
 
         print(f'The number of empty classes that were not considered is: {empty_dict_counter}')
         assert len(class_reg_loss_results) + empty_dict_counter == out_features - len(
@@ -1599,7 +1535,7 @@ def main():
         }
 
         # saving final results, weights and parameters
-        file_save_path = save_model(
+        save_model(
             state_dict=model_results['best_model'],
             model_results=final_res,
             time_dict=time_dict,
@@ -1614,18 +1550,6 @@ def main():
         print(f'The final test acc is: {final_test_acc:.4f} %')
         print(f'The final test MAE is: {final_test_mae:.4f}')
         print(f'The final test MAPE is: {final_test_mape * 100:.4f} %')
-
-        wandb.run.summary["Best MAE"] = final_test_mae
-        wandb.run.summary["Best MAPE"] = final_test_mape * 100
-        wandb.run.summary["Best Test Accuracy"] = final_test_acc
-        wandb.run.summary["Best Train Accuracy"] = final_train_acc
-        wandb.run.summary["Best Test Loss"] = final_test_loss
-        wandb.run.summary["Best Train Loss"] = final_train_loss
-
-        # if NUM_EPOCHS_CLASS_REG > epoch_save_threshold:
-        #     # saving results, weights and parameters
-        #     file_save_path = save_model(state_dict=model_results['best_model'], model_results=model_results,
-        #                                 time_dict=time_dict)
 
         print('---END---' * 20)
 
@@ -1646,32 +1570,15 @@ def main():
     # print the total training time
     print(f"Total training time is: {time_dict['Hours']}:{time_dict['Minutes']}:{time_dict['Seconds']} (h:m:s)")
 
-    wandb.run.summary["Total Training Time"] = f"{time_dict['Hours']}:{time_dict['Minutes']}:{time_dict['Seconds']}"
     if NUM_EPOCHS > epoch_save_threshold:
 
         # plot the loss and acc curves
         plot_loss_and_acc_curves(model_results=model_results)
 
         # saving results, weights and parameters
-        file_save_path = save_model(
-            state_dict=model_results['best_model'], model_results=model_results, time_dict=time_dict
-        )
-
-        # # Load saved data
-        # loaded_data = torch.load(file_save_path)
-
-        # # Load model weights only
-        # loaded_state_dict = loaded_data['Model_state_dict']
-
-        # # Verifying that the save and load operations has been done correctly
-        # if are_state_dicts_equal(model_results['best_model'], loaded_state_dict):
-        #     print("The saved and loaded state dicts are the same.")
-        # else:
-        #     print("The saved and loaded state dicts are different.")
+        save_model(state_dict=model_results['best_model'], model_results=model_results, time_dict=time_dict)
 
     print('---END---' * 20)
-
-    wandb.finish()
 
 
 if __name__ == "__main__":

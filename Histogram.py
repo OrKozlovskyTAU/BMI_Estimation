@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from utils import check_and_create_folder, time_stamp, convert_to_classes
-import wandb
 
 save_path = './saved_figures/histograms'
 
@@ -83,7 +82,6 @@ def make_histogram(
     if is_csv:
         data = pd.read_csv(csv_file_path)
         data_values = data.iloc[:, 1]  #
-        print(len(data_values))
         if classification_activation:
             data_values = convert_to_classes(data_values)
     else:
@@ -140,7 +138,6 @@ def make_histogram(
     print(f'{hist_title} saved at {folder_save_path}/{hist_title}')
     plt.close()  # close to save memory
 
-    # wandb.log({f'{hist_title}': wandb.Image(f'{folder_save_path}/{hist_title}.png')})
     if normal_hist:
         return hist_values, bin_edges, patches
 
